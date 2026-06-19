@@ -1,0 +1,102 @@
+import os
+import requests
+
+from langchain_groq import ChatGroq
+from langchain_core.tools import tool
+from langgraph.prebuilt import create_react_agent
+from langchain_experimental.utilities import PythonREPL
+from duckduckgo_search import DDGS
+
+
+os.environ["GROQ_API_KEY"] = "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"
+SERPER_API_KEY = "b85454f778ea574311e00e6e4acc25a9cb81420"
+
+
+# Initialize LLM
+llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    temperature=0
+)
+
+
+# Python executor
+python = PythonREPL()
+
+
+@tool
+def python_tool(code: str):
+    """Execute python code for calculations or programming tasks."""
+    return python.run(code)
+
+
+@tool
+def search_tool(query: str):
+    """Search the internet for latest information using Google."""
+    
+    url = "https://google.serper.dev/search"
+
+    payload = {
+        "q": query
+    }
+
+    headers = {
+        "X-API-KEY": SERPER_API_KEY,
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+    data = response.json()
+
+    results = []
+
+    if "organic" in data:
+        for r in data["organic"][:3]:
+            results.append({
+                "title": r["title"],
+                "link": r["link"],
+                "snippet": r["snippet"]
+            })
+
+    return str(results)
+
+
+tools = [python_tool, search_tool]
+
+
+# SYSTEM PROMPT
+system_prompt = """
+You are a helpful AI assistant.
+
+You have access to the following tools:
+
+python_tool → for calculations and running python code
+search_tool → for searching the internet
+
+Rules:
+- Use python_tool for math or programming problems.
+- Use search_tool for real-time information.
+- If no tool is required, answer directly.
+"""
+
+
+# Create Agent
+agent = create_react_agent(
+    llm,
+    tools,
+    prompt=system_prompt
+)
+
+
+# Chat loop
+while True:
+
+    user_input = input("\nYou: ")
+
+    if user_input.lower() in ["exit", "quit"]:
+        break
+
+    result = agent.invoke(
+        {"messages": [("user", user_input)]}
+    )
+
+    print("\nBot:", result["messages"][-1].content)

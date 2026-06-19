@@ -1,0 +1,65 @@
+import os
+from groq import Groq
+
+# Initialize the Groq client
+# Make sure to set your GROQ_API_KEY environment variable.
+# For example, run: export GROQ_API_KEY="your-api-key-here" in your terminal
+client = Groq(
+    api_key="gsk_EBhAorREoRA6LJRoiQKIWGdyb3FYxujVeiM8FqOHzRBTphJX10V",
+)
+
+def chat():
+    print("🤖 Welcome to the Groq Chatbot! (Type 'exit' or 'quit' to end)")
+    
+    # Initialize conversation history with a system message
+    messages = [
+        {"role": "system", "content": "You are a helpful, smart, and concise assistant."}
+    ]
+    
+    while True:
+        user_input = input("\nYou: ")
+        
+        if user_input.lower() in ['exit', 'quit']:
+            print("Goodbye! 👋")
+            break
+            
+        if not user_input.strip():
+            continue
+            
+        # Add user's message to conversation history
+        messages.append({"role": "user", "content": user_input})
+        
+        try:
+            # Create a chat completion using the Llama 3 8B model natively hosted on Groq
+            # Alternative models: "llama3-70b-8192", "mixtral-8x7b-32768", "gemma-7b-it"
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile", 
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+                top_p=1,
+                stream=True, # Stream the response for a better CLI experience
+            )
+            
+            print("\nGroq:", end=" ", flush=True)
+            
+            # Process the streamed response
+            full_response = ""
+            for chunk in completion:
+                content = chunk.choices[0].delta.content
+                if content:
+                    print(content, end="", flush=True)
+                    full_response += content
+            print() # Print a new line after the complete response
+            
+            # Add assistant's response to history to maintain context
+            messages.append({"role": "assistant", "content": full_response})
+            
+        except Exception as e:
+            print(f"\nError: {e}")
+            messages.pop() # Remove the user's message that caused the error so they can try again
+
+if __name__ == "__main__":
+    # Check if API key is set
+  
+    chat()
